@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiology Topic Analysis Dashboard</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>Radiology Imaging Topic Analysis</h1>
+            <p class="subtitle">NMF-based Topic Modeling Results (25 Topics)</p>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-tabs">
+        <button class="nav-tab active" data-section="overview">Overview</button>
+        <button class="nav-tab" data-section="topics">Topic Explorer</button>
+        <button class="nav-tab" data-section="graph">Topic Relations</button>
+        <button class="nav-tab" data-section="temporal">Temporal Trends</button>
+        <button class="nav-tab" data-section="documents">Top Documents</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- Overview Section -->
+        <section id="overview" class="section active">
+            <div class="section-header">
+                <h2>Model Overview</h2>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-topics">25</div>
+                    <div class="stat-label">Topics</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-coherence">-</div>
+                    <div class="stat-label">Avg. Coherence (C_V)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="diversity-score">-</div>
+                    <div class="stat-label">Diversity Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="unique-words">-</div>
+                    <div class="stat-label">Unique Words</div>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-container">
+                    <h3>Topic Coherence Scores (C_V)</h3>
+                    <canvas id="coherence-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="visualizations-grid">
+                <div class="viz-card">
+                    <h3>t-SNE Visualization</h3>
+                    <img src="images/tsne.png" alt="t-SNE Visualization" class="viz-image" onclick="openLightbox(this)">
+                </div>
+                <div class="viz-card">
+                    <h3>Document Distribution</h3>
+                    <img src="images/document_dist.png" alt="Document Distribution" class="viz-image" onclick="openLightbox(this)">
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic Explorer Section -->
+        <section id="topics" class="section">
+            <div class="section-header">
+                <h2>Topic Explorer</h2>
+                <p>Click on any topic card to see detailed information</p>
+            </div>
+
+            <div class="topics-grid" id="topics-grid">
+                <!-- Topics will be dynamically generated -->
+            </div>
+        </section>
+
+        <!-- Topic Relations Graph Section -->
+        <section id="graph" class="section">
+            <div class="section-header">
+                <h2>Topic Relations Graph</h2>
+                <p>Interactive visualization of topic relationships</p>
+                <a href="topic-graph.html" target="_blank" class="open-fullscreen">Open in Full Screen</a>
+            </div>
+
+            <div class="graph-container">
+                <iframe src="topic-graph.html" id="topic-graph-iframe" title="Topic Relations Graph"></iframe>
+            </div>
+        </section>
+
+        <!-- Temporal Trends Section -->
+        <section id="temporal" class="section">
+            <div class="section-header">
+                <h2>Temporal Trends</h2>
+                <p>Topic distribution over time</p>
+            </div>
+
+            <div class="temporal-grid">
+                <div class="temporal-card">
+                    <h3>Quarterly Trends (Line Chart)</h3>
+                    <img src="images/temporal_line.png" alt="Temporal Line Chart" class="temporal-image" onclick="openLightbox(this)">
+                </div>
+                <div class="temporal-card">
+                    <h3>Quarterly Trends (Stacked Area)</h3>
+                    <img src="images/temporal_area.png" alt="Temporal Stacked Area Chart" class="temporal-image" onclick="openLightbox(this)">
+                </div>
+                <div class="temporal-card full-width">
+                    <h3>Yearly Distribution</h3>
+                    <img src="images/yearly_dist.png" alt="Yearly Distribution" class="temporal-image" onclick="openLightbox(this)">
+                </div>
+            </div>
+        </section>
+
+        <!-- Top Documents Section -->
+        <section id="documents" class="section">
+            <div class="section-header">
+                <h2>Top Documents</h2>
+                <p>Representative documents for each topic</p>
+            </div>
+
+            <div class="documents-controls">
+                <label for="topic-select">Select Topic:</label>
+                <select id="topic-select">
+                    <!-- Options will be dynamically generated -->
+                </select>
+            </div>
+
+            <div class="documents-list" id="documents-list">
+                <!-- Documents will be dynamically generated -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Topic Detail Modal -->
+    <div class="modal" id="topic-modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div class="modal-header">
+                <h2 id="modal-title">Topic Details</h2>
+                <span class="coherence-badge" id="modal-coherence"></span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-wordcloud">
+                    <img id="modal-wordcloud-img" src="" alt="Wordcloud">
+                </div>
+                <div class="modal-words">
+                    <h3>Top Words</h3>
+                    <table class="words-table" id="modal-words-table">
+                        <thead>
+                            <tr>
+                                <th>Word</th>
+                                <th>Relevance Score</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <img id="lightbox-img" src="" alt="Enlarged view">
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Generated with NMF Topic Modeling | Radiology Imaging Journals Analysis</p>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/topics.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
