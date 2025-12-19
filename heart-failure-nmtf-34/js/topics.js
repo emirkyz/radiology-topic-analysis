@@ -13,15 +13,21 @@ const TopicData = {
      */
     async loadAll() {
         try {
-            const [coherence, diversity, topDocs] = await Promise.all([
+            const [coherence, topDocs] = await Promise.all([
                 this.loadJSON('data/coherence_scores.json'),
-                this.loadJSON('data/diversity_scores.json'),
                 this.loadJSON('data/top_docs.json')
             ]);
 
             this.coherenceData = coherence;
-            this.diversityData = diversity;
             this.topDocsData = topDocs;
+
+            // Try to load diversity data, but don't fail if it doesn't exist
+            try {
+                this.diversityData = await this.loadJSON('data/diversity_scores.json');
+            } catch (e) {
+                console.log('Diversity scores not available');
+                this.diversityData = null;
+            }
 
             return true;
         } catch (error) {
