@@ -92,6 +92,9 @@ function initOverview() {
     if (diversity) {
         document.getElementById('diversity-score').textContent = (diversity.overallScore * 100).toFixed(1) + '%';
         document.getElementById('unique-words').textContent = diversity.uniqueWords?.toLocaleString() || '-';
+    } else {
+        document.getElementById('diversity-score').textContent = 'N/A';
+        document.getElementById('unique-words').textContent = 'N/A';
     }
 }
 
