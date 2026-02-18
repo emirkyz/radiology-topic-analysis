@@ -1,6 +1,5 @@
 /**
  * Topic Data Handler
- * Manages loading and processing of topic modeling data
  */
 
 const TopicData = {
@@ -8,9 +7,6 @@ const TopicData = {
     diversityData: null,
     topDocsData: null,
 
-    /**
-     * Load all data files
-     */
     async loadAll() {
         try {
             const [coherence, topDocs] = await Promise.all([
@@ -21,7 +17,7 @@ const TopicData = {
             this.coherenceData = coherence;
             this.topDocsData = topDocs;
 
-            // Try to load diversity data, but don't fail if it doesn't exist
+            // Try to load diversity scores (may not exist)
             try {
                 this.diversityData = await this.loadJSON('data/diversity_scores.json');
             } catch (e) {
@@ -36,48 +32,47 @@ const TopicData = {
         }
     },
 
-    /**
-     * Load a JSON file
-     */
     async loadJSON(path) {
         const response = await fetch(path);
-        if (!response.ok) {
-            throw new Error(`Failed to load ${path}`);
-        }
+        if (!response.ok) throw new Error(`Failed to load ${path}`);
         return response.json();
     },
 
-    /**
-     * Get number of topics
-     */
     getTopicCount() {
-        if (!this.coherenceData?.gensim?.c_v_per_topic) return 0;
-        return Object.keys(this.coherenceData.gensim.c_v_per_topic).length;
+        // Try from relevance keys first
+        if (this.coherenceData?.relevance) {
+            return Object.keys(this.coherenceData.relevance).length;
+        }
+        // Fall back to gensim
+        if (this.coherenceData?.gensim?.c_v_per_topic) {
+            return Object.keys(this.coherenceData.gensim.c_v_per_topic).length;
+        }
+        return 0;
     },
 
-    /**
-     * Get average coherence score
-     */
     getAverageCoherence() {
         return this.coherenceData?.gensim?.c_v_average || 0;
     },
 
-    /**
-     * Get coherence scores for all topics
-     */
     getCoherenceScores() {
         if (!this.coherenceData?.gensim?.c_v_per_topic) return [];
 
-        return Object.entries(this.coherenceData.gensim.c_v_per_topic).map(([topic, score]) => ({
-            topic: topic,
-            topicNum: parseInt(topic.replace('Topic ', '')),
-            score: score
-        })).sort((a, b) => a.topicNum - b.topicNum);
+        return Object.entries(this.coherenceData.gensim.c_v_per_topic).map(([topic, score]) => {
+            // Handle both "Topic 1" and "topic_01" formats
+            let topicNum;
+            if (topic.startsWith('topic_')) {
+                topicNum = parseInt(topic.replace('topic_', ''));
+            } else {
+                topicNum = parseInt(topic.replace('Topic ', ''));
+            }
+            return {
+                topic: `Topic ${topicNum}`,
+                topicNum: topicNum,
+                score: score
+            };
+        }).sort((a, b) => a.topicNum - b.topicNum);
     },
 
-    /**
-     * Get diversity metrics
-     */
     getDiversityMetrics() {
         if (!this.diversityData) return null;
 
@@ -89,9 +84,6 @@ const TopicData = {
         };
     },
 
-    /**
-     * Get top words for a specific topic
-     */
     getTopWords(topicNum, limit = 30) {
         const topicKey = `topic_${String(topicNum).padStart(2, '0')}`;
 
@@ -105,9 +97,6 @@ const TopicData = {
             .slice(0, limit);
     },
 
-    /**
-     * Get top documents for a specific topic
-     */
     getTopDocuments(topicNum, limit = 10) {
         const topicKey = `Topic ${topicNum}`;
 
@@ -115,24 +104,16 @@ const TopicData = {
 
         return Object.entries(this.topDocsData[topicKey])
             .map(([docId, content]) => {
-                // Parse the content which includes text and score
                 const parts = content.split(':');
                 const score = parseFloat(parts[parts.length - 1]) || 0;
                 const text = parts.slice(0, -1).join(':');
 
-                return {
-                    id: docId,
-                    text: text,
-                    score: score
-                };
+                return { id: docId, text: text, score: score };
             })
             .sort((a, b) => b.score - a.score)
             .slice(0, limit);
     },
 
-    /**
-     * Get all topic summaries
-     */
     getTopicSummaries() {
         const coherenceScores = this.getCoherenceScores();
 
@@ -149,16 +130,11 @@ const TopicData = {
         });
     },
 
-    /**
-     * Generate topic label from top words
-     */
     generateTopicLabel(topicNum) {
         const topWords = this.getTopWords(topicNum, 3);
         if (topWords.length === 0) return `Topic ${topicNum}`;
-
         return topWords.map(w => w.word).join(', ');
     }
 };
 
-// Export for use in other modules
 window.TopicData = TopicData;

@@ -1,29 +1,16 @@
 /**
- * Chart.js Configurations and Visualizations
+ * Chart.js Configurations
  */
 
 const Charts = {
     coherenceChart: null,
 
-    // Color palette for topics
-    colors: [
-        '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c',
-        '#d97706', '#ca8a04', '#65a30d', '#16a34a', '#059669',
-        '#0d9488', '#0891b2', '#0284c7', '#2563eb', '#4f46e5',
-        '#7c3aed', '#9333ea', '#c026d3', '#db2777', '#e11d48',
-        '#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'
-    ],
+    colors: ["#2563eb", "#7c3aed", "#db2777", "#dc2626", "#ea580c", "#d97706", "#ca8a04", "#65a30d", "#16a34a", "#059669", "#0d9488", "#0891b2", "#0284c7", "#2563eb", "#4f46e5", "#7c3aed", "#9333ea", "#c026d3", "#db2777", "#e11d48", "#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e", "#14b8a6", "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899"],
 
-    /**
-     * Initialize all charts
-     */
     init() {
         this.initCoherenceChart();
     },
 
-    /**
-     * Initialize the coherence scores bar chart
-     */
     initCoherenceChart() {
         const ctx = document.getElementById('coherence-chart');
         if (!ctx) return;
@@ -39,7 +26,7 @@ const Charts = {
                 borderColor: scores.map((_, i) => this.colors[i % this.colors.length]),
                 borderWidth: 1,
                 borderRadius: 4,
-                barThickness: 20
+                barThickness: Math.max(8, Math.min(20, 500 / scores.length))
             }]
         };
 
@@ -52,9 +39,7 @@ const Charts = {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
@@ -66,46 +51,19 @@ const Charts = {
                                 return `Top words: ${topWords.map(w => w.word).join(', ')}`;
                             }
                         }
-                    },
-                    annotation: {
-                        annotations: {
-                            averageLine: {
-                                type: 'line',
-                                yMin: averageCoherence,
-                                yMax: averageCoherence,
-                                borderColor: '#dc2626',
-                                borderWidth: 2,
-                                borderDash: [5, 5],
-                                label: {
-                                    display: true,
-                                    content: `Avg: ${averageCoherence.toFixed(3)}`,
-                                    position: 'end'
-                                }
-                            }
-                        }
                     }
                 },
                 scales: {
                     x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
+                        grid: { display: false },
+                        ticks: { maxRotation: 45, minRotation: 45 }
                     },
                     y: {
                         beginAtZero: false,
                         min: 0.4,
                         max: 1.0,
-                        grid: {
-                            color: '#e2e8f0'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Coherence Score (C_V)'
-                        }
+                        grid: { color: '#e2e8f0' },
+                        title: { display: true, text: 'Coherence Score (C_V)' }
                     }
                 },
                 onClick: (event, elements) => {
@@ -121,16 +79,10 @@ const Charts = {
         this.coherenceChart = new Chart(ctx, config);
     },
 
-    /**
-     * Get color for a specific topic
-     */
     getTopicColor(topicNum) {
         return this.colors[(topicNum - 1) % this.colors.length];
     },
 
-    /**
-     * Destroy all charts (for cleanup)
-     */
     destroy() {
         if (this.coherenceChart) {
             this.coherenceChart.destroy();
@@ -139,5 +91,4 @@ const Charts = {
     }
 };
 
-// Export for use in other modules
 window.Charts = Charts;
