@@ -49,7 +49,11 @@
             font-size: 0.9rem;
         }
 
-        .topic-select {
+        .topic-dropdown {
+            position: relative;
+        }
+
+        .topic-dropdown-btn {
             padding: 0.5rem 1rem;
             background: #f1f5f9;
             border: 1px solid #e2e8f0;
@@ -57,7 +61,50 @@
             color: #1e293b;
             font-size: 0.9rem;
             min-width: 200px;
-            max-width: 300px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .topic-dropdown-btn:hover { background: #e2e8f0; }
+
+        .topic-dropdown-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            max-height: 280px;
+            overflow-y: auto;
+            min-width: 220px;
+        }
+
+        .topic-dropdown-panel.open { display: block; }
+
+        .topic-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #1e293b;
+            user-select: none;
+        }
+
+        .topic-checkbox-item:hover { background: #f1f5f9; }
+
+        .topic-checkbox-item input[type="checkbox"] {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
         }
 
         .quick-btn {
@@ -152,9 +199,16 @@
 
     <div class="controls">
         <div class="control-group">
-            <label for="topicSelect">Topics:</label>
-            <select id="topicSelect" class="topic-select" multiple size="1">
-            </select>
+            <label>Topics:</label>
+            <div class="topic-dropdown" id="topicDropdown">
+                <button class="topic-dropdown-btn" id="dropdownBtn" onclick="toggleDropdown()">
+                    <span id="dropdownLabel">All Topics</span>
+                    <span>▾</span>
+                </button>
+                <div class="topic-dropdown-panel" id="dropdownPanel">
+                    <div id="topicCheckboxList"></div>
+                </div>
+            </div>
         </div>
 
         <div class="control-group">
@@ -4047,21 +4101,37 @@
     document.addEventListener('DOMContentLoaded', function() {
         chart = echarts.init(document.getElementById('chart'));
 
-        // Populate topic select
-        const select = document.getElementById('topicSelect');
+        // Populate topic checkboxes
+        const checkboxList = document.getElementById('topicCheckboxList');
         allTopics.forEach(topic => {
-            const option = document.createElement('option');
-            option.value = topic;
-            option.textContent = topic;
-            select.appendChild(option);
+            const item = document.createElement('label');
+            item.className = 'topic-checkbox-item';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = topic;
+            cb.id = 'cb_' + topic.replace(/\s/g, '_');
+            cb.checked = true;
+            cb.addEventListener('change', function() {
+                if (this.checked) {
+                    if (!selectedTopics.includes(topic)) selectedTopics.push(topic);
+                } else {
+                    selectedTopics = selectedTopics.filter(t => t !== topic);
+                }
+                updateDropdownLabel();
+                updateSelectedTopicTags();
+                updateChart();
+            });
+            const span = document.createElement('span');
+            span.textContent = topic;
+            item.appendChild(cb);
+            item.appendChild(span);
+            checkboxList.appendChild(item);
         });
 
         // Select all topics by default
         selectedTopics = [...allTopics];
-        Array.from(select.options).forEach(option => {
-            option.selected = true;
-        });
 
+        updateDropdownLabel();
         updateSelectedTopicTags();
         updateChart();
 
@@ -4161,41 +4231,43 @@
     // Remove topic from selection
     function removeTopic(topic) {
         selectedTopics = selectedTopics.filter(t => t !== topic);
+        const cb = document.getElementById('cb_' + topic.replace(/\s/g, '_'));
+        if (cb) cb.checked = false;
+        updateDropdownLabel();
         updateSelectedTopicTags();
         updateChart();
-
-        const select = document.getElementById('topicSelect');
-        Array.from(select.options).forEach(option => {
-            if (option.value === topic) {
-                option.selected = false;
-            }
-        });
     }
 
-    // Handle topic selection
-    document.addEventListener('DOMContentLoaded', function() {
-        const select = document.getElementById('topicSelect');
+    // Dropdown toggle
+    function toggleDropdown() {
+        document.getElementById('dropdownPanel').classList.toggle('open');
+    }
 
-        select.addEventListener('change', function() {
-            selectedTopics = Array.from(this.selectedOptions).map(option => option.value);
-            updateSelectedTopicTags();
-            updateChart();
-        });
-
-        select.addEventListener('click', function() {
-            this.size = Math.min(allTopics.length, 10);
-        });
-
-        select.addEventListener('blur', function() {
-            this.size = 1;
-        });
+    // Close dropdown on outside click
+    document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('topicDropdown');
+        if (dropdown && !dropdown.contains(e.target)) {
+            document.getElementById('dropdownPanel').classList.remove('open');
+        }
     });
+
+    // Update dropdown button label
+    function updateDropdownLabel() {
+        const label = document.getElementById('dropdownLabel');
+        if (selectedTopics.length === 0) {
+            label.textContent = 'No topics selected';
+        } else if (selectedTopics.length === allTopics.length) {
+            label.textContent = 'All Topics';
+        } else {
+            label.textContent = selectedTopics.length + ' topic' + (selectedTopics.length > 1 ? 's' : '') + ' selected';
+        }
+    }
 
     // Select all topics
     function selectAll() {
         selectedTopics = [...allTopics];
-        const select = document.getElementById('topicSelect');
-        Array.from(select.options).forEach(option => option.selected = true);
+        document.querySelectorAll('#topicCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = true);
+        updateDropdownLabel();
         updateSelectedTopicTags();
         updateChart();
     }
@@ -4203,8 +4275,8 @@
     // Clear all topics
     function clearAll() {
         selectedTopics = [];
-        const select = document.getElementById('topicSelect');
-        Array.from(select.options).forEach(option => option.selected = false);
+        document.querySelectorAll('#topicCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = false);
+        updateDropdownLabel();
         updateSelectedTopicTags();
         updateChart();
     }
