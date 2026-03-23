@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topic Analysis Dashboards</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #7c3aed;
+            --background: #f8fafc;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .header h1 { font-size: 2.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .header .subtitle { font-size: 1.1rem; opacity: 0.9; }
+
+        .main-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .section { margin-bottom: 2.5rem; }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-nmtf {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .badge-pnmf {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-meta {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .card-arrow {
+            margin-top: auto;
+            color: var(--primary-color);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 640px) {
+            .header h1 { font-size: 1.6rem; }
+            .cards-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <h1>Topic Analysis Dashboards</h1>
+    <p class="subtitle">Interactive NMF &amp; PNMF Topic Modeling Results</p>
+</header>
+
+<main class="main-content">
+
+    <section class="section">
+        <h2 class="section-title">Radiology Imaging</h2>
+        <div class="cards-grid">
+            <a class="card" href="radiology-imaging-nmtf-25/">
+                <div class="card-header">
+                    <span class="card-badge badge-nmtf">NMTF</span>
+                    <span class="card-title">Radiology Imaging</span>
+                </div>
+                <div class="card-meta">25 Topics</div>
+                <div class="card-arrow">View Dashboard →</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Heart Failure</h2>
+        <div class="cards-grid">
+            <a class="card" href="heart-failure-nmtf-34/">
+                <div class="card-header">
+                    <span class="card-badge badge-nmtf">NMTF</span>
+                    <span class="card-title">Heart Failure</span>
+                </div>
+                <div class="card-meta">34 Topics</div>
+                <div class="card-arrow">View Dashboard →</div>
+            </a>
+            <a class="card" href="heart-failure-pnmf-43/">
+                <div class="card-header">
+                    <span class="card-badge badge-pnmf">PNMF</span>
+                    <span class="card-title">Heart Failure</span>
+                </div>
+                <div class="card-meta">43 Topics</div>
+                <div class="card-arrow">View Dashboard →</div>
+            </a>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Nutrition Data</h2>
+        <div class="cards-grid">
+            <a class="card" href="nutrition-data-nmtf-26/">
+                <div class="card-header">
+                    <span class="card-badge badge-nmtf">NMTF</span>
+                    <span class="card-title">Nutrition Data</span>
+                </div>
+                <div class="card-meta">26 Topics</div>
+                <div class="card-arrow">View Dashboard →</div>
+            </a>
+            <a class="card" href="nutrition-data-pnmf-52/">
+                <div class="card-header">
+                    <span class="card-badge badge-pnmf">PNMF</span>
+                    <span class="card-title">Nutrition Data</span>
+                </div>
+                <div class="card-meta">52 Topics</div>
+                <div class="card-arrow">View Dashboard →</div>
+            </a>
+        </div>
+    </section>
+
+</main>
+
+<footer class="footer">
+    Topic Modeling Visualization Dashboard — NMF &amp; PNMF Analysis
+</footer>
+
+</body>
+</html>
