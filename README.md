@@ -15,6 +15,15 @@ Github Pages Link : https://emirkyz.github.io/radiology-topic-analysis/
 - [Nutrition Data NMTF 26 Topics](https://emirkyz.github.io/radiology-topic-analysis/nutrition-data-nmtf-26/)
 - [Nutrition Data PNMF 52 Topics](https://emirkyz.github.io/radiology-topic-analysis/nutrition-data-pnmf-52/)
 
+### Nutrition Heart Failure
+- [Nutrition Heart Failure NMTF 15 Topics](https://emirkyz.github.io/radiology-topic-analysis/nutrition-heart-failure-nmtf-15/)
+- [Nutrition Heart Failure PNMF 7 Topics](https://emirkyz.github.io/radiology-topic-analysis/nutrition-heart-failure-pnmf-7/)
+- [Nutrition Heart Failure PNMF 15 Topics](https://emirkyz.github.io/radiology-topic-analysis/nutrition-heart-failure-pnmf-15/)
+
+### Nutrition Heart
+- [Nutrition Heart NMTF 15 Topics](https://emirkyz.github.io/radiology-topic-analysis/nutrition-heart-nmtf-15/)
+- [Nutrition Heart PNMF 15 Topics](https://emirkyz.github.io/radiology-topic-analysis/nutrition-heart-pnmf-15/)
+
 An interactive web dashboard showcasing NMF-based topic modeling results from radiology imaging journals.
 
 ## Features

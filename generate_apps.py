@@ -51,6 +51,11 @@ def parse_folder_name(folder_name: str) -> dict:
     match = re.match(pattern, folder_name)
 
     if not match:
+        # Fallback pattern: {dataset}_{method}_bpe_{topic_count}
+        pattern2 = r'^(.+)_(nmtf|pnmf)_bpe_(\d+)$'
+        match = re.match(pattern2, folder_name)
+
+    if not match:
         return None
 
     return {
