@@ -518,6 +518,54 @@ body {
 .lightbox.active { display: flex; }
 .lightbox img { max-width: 95%; max-height: 95%; object-fit: contain; }
 
+.topic-label {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--text-secondary);
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.5rem;
+    border-left: 3px solid var(--primary-color);
+    background: var(--background);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    line-height: 1.4;
+}
+
+.descriptions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.description-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-left: 4px solid var(--primary-color);
+}
+
+.description-item:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.description-num {
+    font-weight: 700;
+    color: var(--primary-color);
+    min-width: 80px;
+    font-size: 0.9rem;
+}
+
+.description-label {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
 .footer {
     text-align: center;
     padding: 2rem;
@@ -1054,10 +1102,86 @@ document.addEventListener('DOMContentLoaded', init);
 '''
 
 
-def generate_index_html(method_upper: str, topic_count: int, dataset_title: str, has_violin_plot: bool = False, has_umap: bool = False) -> str:
+# =============================================================================
+# JavaScript snippet for topic descriptions (injected when md file is present)
+# =============================================================================
+TOPIC_DESCRIPTIONS_JS = '''\
+async function loadTopicDescriptions(mdFileName) {
+    try {
+        const response = await fetch(mdFileName);
+        if (!response.ok) return;
+        const text = await response.text();
+        const lines = text.split('\\n');
+        lines.forEach(line => {
+            const match = line.match(/^\\d+\\.\\s+\\*\\*Topic\\s+(\\d+):\\*\\*\\s+(.+)/);
+            if (match) {
+                topicLabels[parseInt(match[1])] = match[2].trim();
+            }
+        });
+    } catch (e) {
+        // silently skip if md file can't be loaded
+    }
+
+    const container = document.getElementById('descriptions-list');
+    if (!container) return;
+    const entries = Object.entries(topicLabels).sort((a, b) => a[0] - b[0]);
+    container.innerHTML = entries.map(([num, label]) => `
+        <div class="description-item" onclick="goToTopic(${num})">
+            <span class="description-num">Topic ${String(num).padStart(2, '0')}</span>
+            <span class="description-label">${label}</span>
+        </div>
+    `).join('');
+}
+
+function goToTopic(num) {
+    switchSection('topics');
+    document.querySelector('[data-topic="' + num + '"]')?.scrollIntoView({behavior: 'smooth'});
+}
+
+'''
+
+
+def generate_app_js(md_filename=None):
+    """Generate app.js, optionally with topic descriptions support when md_filename is provided."""
+    if not md_filename:
+        return APP_JS
+
+    js = APP_JS
+
+    # Add topicLabels variable declaration
+    js = js.replace(
+        'let currentTopic = 1;',
+        'let currentTopic = 1;\nlet topicLabels = {};'
+    )
+
+    # Add loadTopicDescriptions() call in init()
+    js = js.replace(
+        '    initNavigation();\n    initOverview();\n    initTopicsGrid();',
+        f"    await loadTopicDescriptions('{md_filename}');\n    initNavigation();\n    initOverview();\n    initTopicsGrid();"
+    )
+
+    # Insert loadTopicDescriptions + goToTopic functions before showError
+    js = js.replace(
+        'function showError(message) {',
+        TOPIC_DESCRIPTIONS_JS + 'function showError(message) {'
+    )
+
+    # Add topic label inside topic card (after the header div, before the wordcloud img)
+    js = js.replace(
+        '            </div>\n            <img\n                src="${topic.wordcloudPath}"',
+        '            </div>\n            ${topicLabels[topic.topicNum] ? `<div class="topic-label">${topicLabels[topic.topicNum]}</div>` : \'\'}\n            <img\n                src="${topic.wordcloudPath}"'
+    )
+
+    return js
+
+
+def generate_index_html(method_upper: str, topic_count: int, dataset_title: str, has_violin_plot: bool = False, has_umap: bool = False, md_filename: str = None) -> str:
     """Generate index.html content with dynamic topic count."""
     # Conditionally add violin plot tab
     violin_tab = '<button class="nav-tab" data-section="violin">Interactive Violin Plot</button>' if has_violin_plot else ''
+
+    # Conditionally add topic descriptions tab
+    descriptions_tab = '<button class="nav-tab" data-section="descriptions">Topic Descriptions</button>' if md_filename else ''
 
     # Conditionally add violin plot section
     violin_section = '''
@@ -1080,6 +1204,17 @@ def generate_index_html(method_upper: str, topic_count: int, dataset_title: str,
                     <img src="images/umap.png" alt="UMAP Visualization" class="viz-image" onclick="openLightbox(this)">
                 </div>
 ''' if has_umap else ''
+
+    # Conditionally add topic descriptions section
+    descriptions_section = f'''
+        <section id="descriptions" class="section">
+            <div class="section-header">
+                <h2>Topic Descriptions</h2>
+                <p>Human-readable topic labels and descriptions</p>
+            </div>
+            <div class="descriptions-list" id="descriptions-list"></div>
+        </section>
+''' if md_filename else ''
 
     return f'''\
 <!DOCTYPE html>
@@ -1106,6 +1241,7 @@ def generate_index_html(method_upper: str, topic_count: int, dataset_title: str,
         {violin_tab}
         <button class="nav-tab" data-section="temporal">Temporal Trends</button>
         <button class="nav-tab" data-section="documents">Top Documents</button>
+        {descriptions_tab}
     </nav>
 
     <main class="main-content">
@@ -1207,7 +1343,7 @@ def generate_index_html(method_upper: str, topic_count: int, dataset_title: str,
 
             <div class="documents-list" id="documents-list"></div>
         </section>
-    </main>
+{descriptions_section}    </main>
 
     <div class="modal" id="topic-modal">
         <div class="modal-content">
@@ -1769,6 +1905,12 @@ def generate_app(source_folder: str, output_dir: str = None,
     (output_path / "data").mkdir(parents=True, exist_ok=True)
     (output_path / "images" / "wordclouds").mkdir(parents=True, exist_ok=True)
 
+    # Detect md file early (needed for JS and HTML generation)
+    md_filename = None
+    md_patterns = list(source_path.glob("*.md"))
+    if md_patterns:
+        md_filename = md_patterns[0].name
+
     # Write CSS
     print("  Writing CSS...")
     (output_path / "css" / "styles.css").write_text(CSS_CONTENT)
@@ -1777,7 +1919,7 @@ def generate_app(source_folder: str, output_dir: str = None,
     print("  Writing JavaScript files...")
     (output_path / "js" / "topics.js").write_text(TOPICS_JS)
     (output_path / "js" / "charts.js").write_text(generate_charts_js(topic_count))
-    (output_path / "js" / "app.js").write_text(APP_JS)
+    (output_path / "js" / "app.js").write_text(generate_app_js(md_filename))
 
     # Copy data files
     print("  Copying data files...")
@@ -1858,10 +2000,16 @@ def generate_app(source_folder: str, output_dir: str = None,
         has_violin_plot = True
         print(f"  Copied violin plot: {violin_src.name}")
 
+    # Copy md file if present (topic descriptions)
+    if md_filename:
+        md_src = source_path / md_filename
+        shutil.copy(md_src, output_path / md_filename)
+        print(f"  Copied topic descriptions: {md_filename}")
+
     # Generate index.html
     print("  Generating index.html...")
     (output_path / "index.html").write_text(
-        generate_index_html(method_upper, topic_count, dataset_title, has_violin_plot, has_umap)
+        generate_index_html(method_upper, topic_count, dataset_title, has_violin_plot, has_umap, md_filename)
     )
 
     # Generate topic-graph.html
