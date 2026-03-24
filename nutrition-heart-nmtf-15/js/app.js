@@ -4,6 +4,7 @@
 
 let currentSection = 'overview';
 let currentTopic = 1;
+let topicLabels = {};
 
 async function init() {
     showLoading(true);
@@ -15,6 +16,7 @@ async function init() {
         return;
     }
 
+    await loadTopicDescriptions('nutrition_heart_nmtf_15.md');
     initNavigation();
     initOverview();
     initTopicsGrid();
@@ -25,6 +27,33 @@ async function init() {
 
 function showLoading(show) {
     console.log(show ? 'Loading...' : 'Loaded');
+}
+
+async function loadTopicDescriptions(mdFileName) {
+    try {
+        const response = await fetch(mdFileName);
+        if (!response.ok) return;
+        const text = await response.text();
+        const lines = text.split('\n');
+        lines.forEach(line => {
+            const match = line.match(/^\d+\.\s+\*\*Topic\s+(\d+):\*\*\s+(.+)/);
+            if (match) {
+                topicLabels[parseInt(match[1])] = match[2].trim();
+            }
+        });
+    } catch (e) {
+        // silently skip if md file can't be loaded
+    }
+
+    const container = document.getElementById('descriptions-list');
+    if (!container) return;
+    const entries = Object.entries(topicLabels).sort((a, b) => a[0] - b[0]);
+    container.innerHTML = entries.map(([num, label]) => `
+        <div class="description-item" onclick="switchSection('topics'); document.querySelector('[data-topic=\\'${num}\\']')?.scrollIntoView({behavior:'smooth'})">
+            <span class="description-num">Topic ${String(num).padStart(2, '0')}</span>
+            <span class="description-label">${label}</span>
+        </div>
+    `).join('');
 }
 
 function showError(message) {
@@ -78,6 +107,7 @@ function initTopicsGrid() {
                 <span class="topic-number">Topic ${topic.topicNum}</span>
                 <span class="coherence-badge ${topic.coherence < 0.6 ? 'low' : ''}">${topic.coherence.toFixed(3)}</span>
             </div>
+            ${topicLabels[topic.topicNum] ? `<div class="topic-label">${topicLabels[topic.topicNum]}</div>` : ''}
             <img
                 src="${topic.wordcloudPath}"
                 alt="Topic ${topic.topicNum} Wordcloud"

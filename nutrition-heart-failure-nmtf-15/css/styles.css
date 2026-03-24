@@ -370,6 +370,54 @@ body {
 .lightbox.active { display: flex; }
 .lightbox img { max-width: 95%; max-height: 95%; object-fit: contain; }
 
+.topic-label {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--text-secondary);
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.5rem;
+    border-left: 3px solid var(--primary-color);
+    background: var(--background);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    line-height: 1.4;
+}
+
+.descriptions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.description-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--card-bg);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-left: 4px solid var(--primary-color);
+}
+
+.description-item:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.description-num {
+    font-weight: 700;
+    color: var(--primary-color);
+    min-width: 80px;
+    font-size: 0.9rem;
+}
+
+.description-label {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
 .footer {
     text-align: center;
     padding: 2rem;
