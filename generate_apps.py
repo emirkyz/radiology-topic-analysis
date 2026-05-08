@@ -1175,10 +1175,13 @@ def generate_app_js(md_filename=None):
     return js
 
 
-def generate_index_html(method_upper: str, topic_count: int, dataset_title: str, has_violin_plot: bool = False, has_umap: bool = False, md_filename: str = None) -> str:
+def generate_index_html(method_upper: str, topic_count: int, dataset_title: str, has_violin_plot: bool = False, has_umap: bool = False, md_filename: str = None, has_normalized_graph: bool = False) -> str:
     """Generate index.html content with dynamic topic count."""
     # Conditionally add violin plot tab
     violin_tab = '<button class="nav-tab" data-section="violin">Interactive Violin Plot</button>' if has_violin_plot else ''
+
+    # Conditionally add normalized graph tab
+    normalized_tab = '<button class="nav-tab" data-section="normalized-graph">Normalized Temporal Graph</button>' if has_normalized_graph else ''
 
     # Conditionally add topic descriptions tab
     descriptions_tab = '<button class="nav-tab" data-section="descriptions">Topic Descriptions</button>' if md_filename else ''
@@ -1196,6 +1199,20 @@ def generate_index_html(method_upper: str, topic_count: int, dataset_title: str,
             </div>
         </section>
 ''' if has_violin_plot else ''
+
+    # Conditionally add normalized graph section
+    normalized_section = '''
+        <section id="normalized-graph" class="section">
+            <div class="section-header">
+                <h2>Normalized Temporal Graph</h2>
+                <p>Normalized topic proportions over time - each quarter sums to 1</p>
+                <a href="normalized-graph.html" target="_blank" class="open-fullscreen">Open in Full Screen</a>
+            </div>
+            <div class="graph-container">
+                <iframe src="normalized-graph.html" id="normalized-graph-iframe" title="Normalized Temporal Graph"></iframe>
+            </div>
+        </section>
+''' if has_normalized_graph else ''
 
     # Conditionally add UMAP visualization card
     umap_card = '''
@@ -1239,6 +1256,7 @@ def generate_index_html(method_upper: str, topic_count: int, dataset_title: str,
         <button class="nav-tab" data-section="topics">Topic Explorer</button>
         <button class="nav-tab" data-section="graph">Interactive Temporal Graph</button>
         {violin_tab}
+        {normalized_tab}
         <button class="nav-tab" data-section="temporal">Temporal Trends</button>
         <button class="nav-tab" data-section="documents">Top Documents</button>
         {descriptions_tab}
@@ -1308,6 +1326,7 @@ def generate_index_html(method_upper: str, topic_count: int, dataset_title: str,
             </div>
         </section>
 {violin_section}
+{normalized_section}
         <section id="temporal" class="section">
             <div class="section-header">
                 <h2>Temporal Trends</h2>
@@ -1839,6 +1858,200 @@ def generate_topic_graph_html(csv_path: Path, method_upper: str, topic_count: in
 '''
 
 
+def generate_normalized_graph_html(csv_path: Path, method_upper: str, topic_count: int) -> str:
+    """Generate normalized-graph.html with embedded normalized CSV data."""
+    csv_data = []
+    with open(csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            csv_data.append(row)
+
+    csv_json = json.dumps(csv_data, indent=2)
+
+    # Reuse the same template as topic-graph but with normalized labels
+    base_colors = [
+        '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c',
+        '#d97706', '#ca8a04', '#65a30d', '#16a34a', '#059669',
+        '#0d9488', '#0891b2', '#0284c7', '#4f46e5', '#9333ea',
+        '#c026d3', '#e11d48', '#ef4444', '#f97316', '#eab308',
+        '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#0ea5e9',
+        '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+        '#ec4899', '#f43f5e', '#fb7185', '#f472b6', '#e879f9',
+        '#c084fc', '#a78bfa', '#818cf8', '#60a5fa', '#38bdf8',
+        '#22d3ee', '#2dd4bf', '#34d399', '#4ade80', '#a3e635'
+    ]
+
+    return f'''\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Normalized Topic Temporal Graph - {method_upper}</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; min-height: 100vh; color: #1e293b; }}
+        .header {{ background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }}
+        .header h1 {{ font-size: 1.5rem; font-weight: 600; }}
+        .header p {{ opacity: 0.9; font-size: 0.9rem; }}
+        .controls {{ background: #ffffff; padding: 1rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }}
+        .control-group {{ display: flex; align-items: center; gap: 0.5rem; }}
+        .control-group label {{ font-weight: 500; color: #64748b; font-size: 0.9rem; }}
+        .topic-dropdown {{ position: relative; }}
+        .topic-dropdown-btn {{ padding: 0.5rem 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; color: #1e293b; font-size: 0.9rem; min-width: 200px; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }}
+        .topic-dropdown-btn:hover {{ background: #e2e8f0; }}
+        .topic-dropdown-panel {{ display: none; position: absolute; top: calc(100% + 4px); left: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; max-height: 280px; overflow-y: auto; min-width: 220px; }}
+        .topic-dropdown-panel.open {{ display: block; }}
+        .topic-checkbox-item {{ display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; cursor: pointer; font-size: 0.875rem; color: #1e293b; user-select: none; }}
+        .topic-checkbox-item:hover {{ background: #f1f5f9; }}
+        .topic-checkbox-item input[type="checkbox"] {{ cursor: pointer; width: 14px; height: 14px; }}
+        .quick-btn {{ padding: 0.5rem 1rem; background: #2563eb; border: none; border-radius: 6px; color: #fff; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }}
+        .quick-btn:hover {{ background: #1d4ed8; }}
+        .quick-btn.secondary {{ background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }}
+        .quick-btn.secondary:hover {{ background: #e2e8f0; color: #1e293b; }}
+        .selected-topics {{ display: flex; flex-wrap: wrap; gap: 0.5rem; flex: 1; }}
+        .topic-tag {{ background: #e0e7ff; color: #3730a3; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }}
+        .topic-tag .remove {{ cursor: pointer; opacity: 0.7; font-weight: bold; }}
+        .topic-tag .remove:hover {{ opacity: 1; }}
+        .chart-container {{ width: 100%; height: calc(100vh - 140px); padding: 1rem; }}
+        #chart {{ width: 100%; height: 100%; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }}
+        .no-selection {{ color: #64748b; font-size: 0.85rem; }}
+        @media (max-width: 768px) {{ .controls {{ flex-direction: column; align-items: flex-start; }} .topic-dropdown-btn {{ width: 100%; }} }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Normalized Topic Temporal Distribution</h1>
+            <p>{method_upper} Analysis - {topic_count} Topics (Proportions per Quarter)</p>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Topics:</label>
+            <div class="topic-dropdown" id="topicDropdown">
+                <button class="topic-dropdown-btn" id="dropdownBtn" onclick="toggleDropdown()">
+                    <span id="dropdownLabel">All Topics</span>
+                    <span>▾</span>
+                </button>
+                <div class="topic-dropdown-panel" id="dropdownPanel">
+                    <div id="topicCheckboxList"></div>
+                </div>
+            </div>
+        </div>
+        <div class="control-group">
+            <button class="quick-btn" onclick="selectAll()">Select All</button>
+            <button class="quick-btn secondary" onclick="clearAll()">Clear All</button>
+        </div>
+        <div class="selected-topics" id="selectedTopics"></div>
+    </div>
+
+    <div class="chart-container">
+        <div id="chart"></div>
+    </div>
+
+    <script>
+    const csvData = {csv_json};
+    const allTopics = Object.keys(csvData[0]).filter(key => key.startsWith('Topic'));
+    let selectedTopics = [];
+    let chart = null;
+    const colors = {json.dumps(base_colors)};
+
+    document.addEventListener('DOMContentLoaded', function() {{
+        chart = echarts.init(document.getElementById('chart'));
+        const checkboxList = document.getElementById('topicCheckboxList');
+        allTopics.forEach(topic => {{
+            const item = document.createElement('label');
+            item.className = 'topic-checkbox-item';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = topic;
+            cb.id = 'cb_' + topic.replace(/\s/g, '_');
+            cb.checked = true;
+            cb.addEventListener('change', function() {{
+                if (this.checked) {{ if (!selectedTopics.includes(topic)) selectedTopics.push(topic); }}
+                else {{ selectedTopics = selectedTopics.filter(t => t !== topic); }}
+                updateDropdownLabel(); updateSelectedTopicTags(); updateChart();
+            }});
+            const span = document.createElement('span');
+            span.textContent = topic;
+            item.appendChild(cb); item.appendChild(span);
+            checkboxList.appendChild(item);
+        }});
+        selectedTopics = [...allTopics];
+        updateDropdownLabel(); updateSelectedTopicTags(); updateChart();
+        window.addEventListener('resize', () => chart.resize());
+    }});
+
+    function updateChart() {{
+        if (!chart || !csvData) return;
+        const periods = csvData.map(row => row.period);
+        const series = selectedTopics.map((topic, index) => ({{
+            name: topic, type: 'line',
+            data: csvData.map(row => parseFloat(row[topic]) || 0),
+            smooth: true,
+            lineStyle: {{ width: 2 }},
+            itemStyle: {{ color: colors[index % colors.length] }},
+            emphasis: {{ focus: 'series', lineStyle: {{ width: 3 }} }},
+            blur: {{ lineStyle: {{ opacity: 0.2 }}, itemStyle: {{ opacity: 0.2 }} }}
+        }}));
+        const option = {{
+            title: {{ text: selectedTopics.length === 0 ? 'Select topics to display' : 'Normalized Topic Distribution Over Time', left: 'center', top: selectedTopics.length === 0 ? 'center' : 10, textStyle: {{ color: '#1e293b' }} }},
+            tooltip: {{ trigger: 'item', backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#e2e8f0', borderWidth: 1, textStyle: {{ color: '#1e293b' }}, formatter: function(param) {{ return `${{param.name}}<br/><span style="color:${{param.color}}">●</span> ${{param.seriesName}}: ${{(parseFloat(param.value)*100).toFixed(2)}}%`; }} }},
+            legend: {{ data: selectedTopics, top: 40, type: 'scroll', textStyle: {{ color: '#64748b' }} }},
+            grid: {{ left: '3%', right: '4%', bottom: '3%', top: selectedTopics.length === 0 ? '50%' : 100, containLabel: true }},
+            xAxis: {{ type: 'category', data: periods, axisLabel: {{ rotate: 45, color: '#64748b' }}, axisLine: {{ lineStyle: {{ color: '#e2e8f0' }} }}, splitLine: {{ lineStyle: {{ color: '#f1f5f9' }} }} }},
+            yAxis: {{ type: 'value', name: 'Topic Proportion', nameTextStyle: {{ color: '#64748b' }}, axisLabel: {{ color: '#64748b', formatter: v => (v*100).toFixed(0)+'%' }}, axisLine: {{ lineStyle: {{ color: '#e2e8f0' }} }}, splitLine: {{ lineStyle: {{ color: '#f1f5f9' }} }}, min: 0, max: 1 }},
+            series: series
+        }};
+        chart.setOption(option, true);
+    }}
+
+    function updateSelectedTopicTags() {{
+        const container = document.getElementById('selectedTopics');
+        if (selectedTopics.length === 0) {{ container.innerHTML = '<span class="no-selection">No topics selected</span>'; return; }}
+        container.innerHTML = selectedTopics.map(topic => `<div class="topic-tag"><span>${{topic}}</span><span class="remove" onclick="removeTopic('${{topic}}')">×</span></div>`).join('');
+    }}
+
+    function removeTopic(topic) {{
+        selectedTopics = selectedTopics.filter(t => t !== topic);
+        const cb = document.getElementById('cb_' + topic.replace(/\s/g, '_'));
+        if (cb) cb.checked = false;
+        updateDropdownLabel(); updateSelectedTopicTags(); updateChart();
+    }}
+
+    function toggleDropdown() {{ document.getElementById('dropdownPanel').classList.toggle('open'); }}
+    document.addEventListener('click', function(e) {{
+        const dropdown = document.getElementById('topicDropdown');
+        if (dropdown && !dropdown.contains(e.target)) document.getElementById('dropdownPanel').classList.remove('open');
+    }});
+
+    function updateDropdownLabel() {{
+        const label = document.getElementById('dropdownLabel');
+        if (selectedTopics.length === 0) label.textContent = 'No topics selected';
+        else if (selectedTopics.length === allTopics.length) label.textContent = 'All Topics';
+        else label.textContent = selectedTopics.length + ' topic' + (selectedTopics.length > 1 ? 's' : '') + ' selected';
+    }}
+
+    function selectAll() {{
+        selectedTopics = [...allTopics];
+        document.querySelectorAll('#topicCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = true);
+        updateDropdownLabel(); updateSelectedTopicTags(); updateChart();
+    }}
+
+    function clearAll() {{
+        selectedTopics = [];
+        document.querySelectorAll('#topicCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = false);
+        updateDropdownLabel(); updateSelectedTopicTags(); updateChart();
+    }}
+    </script>
+</body>
+</html>
+'''
+
+
 def generate_app(source_folder: str, output_dir: str = None,
                  prefix: str = None, method: str = None,
                  dataset: str = None) -> str:
@@ -2006,10 +2219,20 @@ def generate_app(source_folder: str, output_dir: str = None,
         shutil.copy(md_src, output_path / md_filename)
         print(f"  Copied topic descriptions: {md_filename}")
 
+    # Generate normalized-graph.html
+    has_normalized_graph = False
+    normalized_csv_path = source_path / f"{prefix}_temporal_topic_dist_quarter_normalized.csv"
+    if normalized_csv_path.exists():
+        print("  Generating normalized-graph.html...")
+        (output_path / "normalized-graph.html").write_text(
+            generate_normalized_graph_html(normalized_csv_path, method_upper, topic_count)
+        )
+        has_normalized_graph = True
+
     # Generate index.html
     print("  Generating index.html...")
     (output_path / "index.html").write_text(
-        generate_index_html(method_upper, topic_count, dataset_title, has_violin_plot, has_umap, md_filename)
+        generate_index_html(method_upper, topic_count, dataset_title, has_violin_plot, has_umap, md_filename, has_normalized_graph)
     )
 
     # Generate topic-graph.html

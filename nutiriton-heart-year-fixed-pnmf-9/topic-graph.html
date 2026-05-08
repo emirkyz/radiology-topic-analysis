@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topic Temporal Graph - PNMF</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 600; }
+        .header p { opacity: 0.9; font-size: 0.9rem; }
+
+        .controls {
+            background: #ffffff;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .topic-dropdown {
+            position: relative;
+        }
+
+        .topic-dropdown-btn {
+            padding: 0.5rem 1rem;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            color: #1e293b;
+            font-size: 0.9rem;
+            min-width: 200px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .topic-dropdown-btn:hover { background: #e2e8f0; }
+
+        .topic-dropdown-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            max-height: 280px;
+            overflow-y: auto;
+            min-width: 220px;
+        }
+
+        .topic-dropdown-panel.open { display: block; }
+
+        .topic-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #1e293b;
+            user-select: none;
+        }
+
+        .topic-checkbox-item:hover { background: #f1f5f9; }
+
+        .topic-checkbox-item input[type="checkbox"] {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
+        .quick-btn {
+            padding: 0.5rem 1rem;
+            background: #2563eb;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover { background: #1d4ed8; }
+
+        .quick-btn.secondary {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+
+        .quick-btn.secondary:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .selected-topics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            flex: 1;
+        }
+
+        .topic-tag {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .topic-tag .remove {
+            cursor: pointer;
+            opacity: 0.7;
+            font-weight: bold;
+        }
+
+        .topic-tag .remove:hover { opacity: 1; }
+
+        .chart-container {
+            width: 100%;
+            height: calc(100vh - 140px);
+            padding: 1rem;
+        }
+
+        #chart {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .no-selection {
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .topic-dropdown-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Topic Temporal Distribution</h1>
+            <p>PNMF Analysis - 9 Topics</p>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Topics:</label>
+            <div class="topic-dropdown" id="topicDropdown">
+                <button class="topic-dropdown-btn" id="dropdownBtn" onclick="toggleDropdown()">
+                    <span id="dropdownLabel">All Topics</span>
+                    <span>▾</span>
+                </button>
+                <div class="topic-dropdown-panel" id="dropdownPanel">
+                    <div id="topicCheckboxList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <button class="quick-btn" onclick="selectAll()">Select All</button>
+            <button class="quick-btn secondary" onclick="clearAll()">Clear All</button>
+        </div>
+
+        <div class="selected-topics" id="selectedTopics">
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div id="chart"></div>
+    </div>
+
+    <script>
+    // Embedded CSV data
+    const csvData = [
+  {
+    "period": "2000Q1",
+    "Topic 1": "15",
+    "Topic 2": "8",
+    "Topic 3": "4",
+    "Topic 4": "15",
+    "Topic 5": "7",
+    "Topic 6": "6",
+    "Topic 7": "8",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2000Q2",
+    "Topic 1": "7",
+    "Topic 2": "6",
+    "Topic 3": "1",
+    "Topic 4": "8",
+    "Topic 5": "3",
+    "Topic 6": "7",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2000Q3",
+    "Topic 1": "4",
+    "Topic 2": "3",
+    "Topic 3": "1",
+    "Topic 4": "8",
+    "Topic 5": "4",
+    "Topic 6": "8",
+    "Topic 7": "9",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2000Q4",
+    "Topic 1": "5",
+    "Topic 2": "10",
+    "Topic 3": "2",
+    "Topic 4": "10",
+    "Topic 5": "1",
+    "Topic 6": "3",
+    "Topic 7": "10",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2001Q1",
+    "Topic 1": "13",
+    "Topic 2": "7",
+    "Topic 3": "0",
+    "Topic 4": "12",
+    "Topic 5": "2",
+    "Topic 6": "6",
+    "Topic 7": "12",
+    "Topic 8": "0",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2001Q2",
+    "Topic 1": "6",
+    "Topic 2": "6",
+    "Topic 3": "2",
+    "Topic 4": "10",
+    "Topic 5": "2",
+    "Topic 6": "3",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2001Q3",
+    "Topic 1": "6",
+    "Topic 2": "6",
+    "Topic 3": "1",
+    "Topic 4": "7",
+    "Topic 5": "2",
+    "Topic 6": "3",
+    "Topic 7": "4",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2001Q4",
+    "Topic 1": "8",
+    "Topic 2": "5",
+    "Topic 3": "1",
+    "Topic 4": "5",
+    "Topic 5": "3",
+    "Topic 6": "7",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2002Q1",
+    "Topic 1": "18",
+    "Topic 2": "5",
+    "Topic 3": "2",
+    "Topic 4": "6",
+    "Topic 5": "2",
+    "Topic 6": "4",
+    "Topic 7": "13",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2002Q2",
+    "Topic 1": "6",
+    "Topic 2": "4",
+    "Topic 3": "2",
+    "Topic 4": "5",
+    "Topic 5": "5",
+    "Topic 6": "3",
+    "Topic 7": "8",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2002Q3",
+    "Topic 1": "6",
+    "Topic 2": "9",
+    "Topic 3": "0",
+    "Topic 4": "10",
+    "Topic 5": "5",
+    "Topic 6": "4",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2002Q4",
+    "Topic 1": "10",
+    "Topic 2": "2",
+    "Topic 3": "0",
+    "Topic 4": "9",
+    "Topic 5": "5",
+    "Topic 6": "2",
+    "Topic 7": "10",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2003Q1",
+    "Topic 1": "14",
+    "Topic 2": "7",
+    "Topic 3": "4",
+    "Topic 4": "8",
+    "Topic 5": "9",
+    "Topic 6": "5",
+    "Topic 7": "9",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2003Q2",
+    "Topic 1": "5",
+    "Topic 2": "11",
+    "Topic 3": "1",
+    "Topic 4": "9",
+    "Topic 5": "3",
+    "Topic 6": "8",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2003Q3",
+    "Topic 1": "11",
+    "Topic 2": "3",
+    "Topic 3": "2",
+    "Topic 4": "6",
+    "Topic 5": "4",
+    "Topic 6": "6",
+    "Topic 7": "12",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2003Q4",
+    "Topic 1": "11",
+    "Topic 2": "5",
+    "Topic 3": "0",
+    "Topic 4": "7",
+    "Topic 5": "4",
+    "Topic 6": "3",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2004Q1",
+    "Topic 1": "10",
+    "Topic 2": "8",
+    "Topic 3": "2",
+    "Topic 4": "19",
+    "Topic 5": "5",
+    "Topic 6": "5",
+    "Topic 7": "11",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2004Q2",
+    "Topic 1": "10",
+    "Topic 2": "3",
+    "Topic 3": "2",
+    "Topic 4": "8",
+    "Topic 5": "5",
+    "Topic 6": "6",
+    "Topic 7": "4",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2004Q3",
+    "Topic 1": "6",
+    "Topic 2": "12",
+    "Topic 3": "1",
+    "Topic 4": "6",
+    "Topic 5": "6",
+    "Topic 6": "3",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2004Q4",
+    "Topic 1": "8",
+    "Topic 2": "4",
+    "Topic 3": "1",
+    "Topic 4": "6",
+    "Topic 5": "12",
+    "Topic 6": "3",
+    "Topic 7": "8",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2005Q1",
+    "Topic 1": "13",
+    "Topic 2": "8",
+    "Topic 3": "1",
+    "Topic 4": "10",
+    "Topic 5": "4",
+    "Topic 6": "9",
+    "Topic 7": "8",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2005Q2",
+    "Topic 1": "12",
+    "Topic 2": "10",
+    "Topic 3": "4",
+    "Topic 4": "12",
+    "Topic 5": "4",
+    "Topic 6": "2",
+    "Topic 7": "4",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2005Q3",
+    "Topic 1": "17",
+    "Topic 2": "7",
+    "Topic 3": "0",
+    "Topic 4": "12",
+    "Topic 5": "10",
+    "Topic 6": "3",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2005Q4",
+    "Topic 1": "13",
+    "Topic 2": "13",
+    "Topic 3": "3",
+    "Topic 4": "4",
+    "Topic 5": "2",
+    "Topic 6": "9",
+    "Topic 7": "12",
+    "Topic 8": "2",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2006Q1",
+    "Topic 1": "17",
+    "Topic 2": "6",
+    "Topic 3": "6",
+    "Topic 4": "10",
+    "Topic 5": "8",
+    "Topic 6": "5",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2006Q2",
+    "Topic 1": "14",
+    "Topic 2": "11",
+    "Topic 3": "5",
+    "Topic 4": "6",
+    "Topic 5": "5",
+    "Topic 6": "9",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2006Q3",
+    "Topic 1": "24",
+    "Topic 2": "5",
+    "Topic 3": "2",
+    "Topic 4": "6",
+    "Topic 5": "8",
+    "Topic 6": "6",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2006Q4",
+    "Topic 1": "15",
+    "Topic 2": "7",
+    "Topic 3": "4",
+    "Topic 4": "7",
+    "Topic 5": "6",
+    "Topic 6": "7",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2007Q1",
+    "Topic 1": "23",
+    "Topic 2": "14",
+    "Topic 3": "3",
+    "Topic 4": "6",
+    "Topic 5": "7",
+    "Topic 6": "7",
+    "Topic 7": "8",
+    "Topic 8": "2",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2007Q2",
+    "Topic 1": "13",
+    "Topic 2": "7",
+    "Topic 3": "3",
+    "Topic 4": "7",
+    "Topic 5": "2",
+    "Topic 6": "3",
+    "Topic 7": "4",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2007Q3",
+    "Topic 1": "7",
+    "Topic 2": "4",
+    "Topic 3": "6",
+    "Topic 4": "8",
+    "Topic 5": "6",
+    "Topic 6": "8",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2007Q4",
+    "Topic 1": "14",
+    "Topic 2": "12",
+    "Topic 3": "2",
+    "Topic 4": "10",
+    "Topic 5": "7",
+    "Topic 6": "7",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2008Q1",
+    "Topic 1": "17",
+    "Topic 2": "12",
+    "Topic 3": "6",
+    "Topic 4": "7",
+    "Topic 5": "6",
+    "Topic 6": "6",
+    "Topic 7": "17",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2008Q2",
+    "Topic 1": "9",
+    "Topic 2": "6",
+    "Topic 3": "5",
+    "Topic 4": "17",
+    "Topic 5": "5",
+    "Topic 6": "4",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2008Q3",
+    "Topic 1": "8",
+    "Topic 2": "13",
+    "Topic 3": "5",
+    "Topic 4": "11",
+    "Topic 5": "0",
+    "Topic 6": "7",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2008Q4",
+    "Topic 1": "11",
+    "Topic 2": "10",
+    "Topic 3": "0",
+    "Topic 4": "4",
+    "Topic 5": "4",
+    "Topic 6": "6",
+    "Topic 7": "5",
+    "Topic 8": "1",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2009Q1",
+    "Topic 1": "15",
+    "Topic 2": "11",
+    "Topic 3": "3",
+    "Topic 4": "15",
+    "Topic 5": "6",
+    "Topic 6": "9",
+    "Topic 7": "8",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2009Q2",
+    "Topic 1": "8",
+    "Topic 2": "7",
+    "Topic 3": "2",
+    "Topic 4": "9",
+    "Topic 5": "8",
+    "Topic 6": "8",
+    "Topic 7": "5",
+    "Topic 8": "1",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2009Q3",
+    "Topic 1": "11",
+    "Topic 2": "9",
+    "Topic 3": "3",
+    "Topic 4": "13",
+    "Topic 5": "3",
+    "Topic 6": "6",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2009Q4",
+    "Topic 1": "12",
+    "Topic 2": "9",
+    "Topic 3": "2",
+    "Topic 4": "6",
+    "Topic 5": "5",
+    "Topic 6": "14",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2010Q1",
+    "Topic 1": "21",
+    "Topic 2": "21",
+    "Topic 3": "7",
+    "Topic 4": "12",
+    "Topic 5": "6",
+    "Topic 6": "11",
+    "Topic 7": "13",
+    "Topic 8": "0",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2010Q2",
+    "Topic 1": "10",
+    "Topic 2": "7",
+    "Topic 3": "4",
+    "Topic 4": "5",
+    "Topic 5": "5",
+    "Topic 6": "4",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2010Q3",
+    "Topic 1": "14",
+    "Topic 2": "12",
+    "Topic 3": "5",
+    "Topic 4": "14",
+    "Topic 5": "5",
+    "Topic 6": "10",
+    "Topic 7": "10",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2010Q4",
+    "Topic 1": "7",
+    "Topic 2": "9",
+    "Topic 3": "2",
+    "Topic 4": "13",
+    "Topic 5": "7",
+    "Topic 6": "7",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2011Q1",
+    "Topic 1": "20",
+    "Topic 2": "13",
+    "Topic 3": "8",
+    "Topic 4": "17",
+    "Topic 5": "8",
+    "Topic 6": "16",
+    "Topic 7": "6",
+    "Topic 8": "1",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2011Q2",
+    "Topic 1": "14",
+    "Topic 2": "15",
+    "Topic 3": "4",
+    "Topic 4": "5",
+    "Topic 5": "3",
+    "Topic 6": "6",
+    "Topic 7": "1",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2011Q3",
+    "Topic 1": "12",
+    "Topic 2": "15",
+    "Topic 3": "4",
+    "Topic 4": "13",
+    "Topic 5": "5",
+    "Topic 6": "8",
+    "Topic 7": "1",
+    "Topic 8": "1",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2011Q4",
+    "Topic 1": "17",
+    "Topic 2": "7",
+    "Topic 3": "5",
+    "Topic 4": "12",
+    "Topic 5": "13",
+    "Topic 6": "11",
+    "Topic 7": "10",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2012Q1",
+    "Topic 1": "27",
+    "Topic 2": "27",
+    "Topic 3": "4",
+    "Topic 4": "16",
+    "Topic 5": "13",
+    "Topic 6": "9",
+    "Topic 7": "14",
+    "Topic 8": "1",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2012Q2",
+    "Topic 1": "10",
+    "Topic 2": "15",
+    "Topic 3": "5",
+    "Topic 4": "8",
+    "Topic 5": "5",
+    "Topic 6": "8",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2012Q3",
+    "Topic 1": "11",
+    "Topic 2": "16",
+    "Topic 3": "6",
+    "Topic 4": "12",
+    "Topic 5": "2",
+    "Topic 6": "7",
+    "Topic 7": "13",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2012Q4",
+    "Topic 1": "10",
+    "Topic 2": "12",
+    "Topic 3": "5",
+    "Topic 4": "10",
+    "Topic 5": "5",
+    "Topic 6": "8",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2013Q1",
+    "Topic 1": "19",
+    "Topic 2": "19",
+    "Topic 3": "12",
+    "Topic 4": "15",
+    "Topic 5": "11",
+    "Topic 6": "15",
+    "Topic 7": "17",
+    "Topic 8": "2",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2013Q2",
+    "Topic 1": "13",
+    "Topic 2": "13",
+    "Topic 3": "6",
+    "Topic 4": "17",
+    "Topic 5": "5",
+    "Topic 6": "7",
+    "Topic 7": "4",
+    "Topic 8": "0",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2013Q3",
+    "Topic 1": "17",
+    "Topic 2": "14",
+    "Topic 3": "6",
+    "Topic 4": "12",
+    "Topic 5": "3",
+    "Topic 6": "7",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2013Q4",
+    "Topic 1": "18",
+    "Topic 2": "17",
+    "Topic 3": "8",
+    "Topic 4": "12",
+    "Topic 5": "6",
+    "Topic 6": "10",
+    "Topic 7": "5",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2014Q1",
+    "Topic 1": "22",
+    "Topic 2": "31",
+    "Topic 3": "16",
+    "Topic 4": "26",
+    "Topic 5": "16",
+    "Topic 6": "21",
+    "Topic 7": "17",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2014Q2",
+    "Topic 1": "11",
+    "Topic 2": "11",
+    "Topic 3": "3",
+    "Topic 4": "14",
+    "Topic 5": "14",
+    "Topic 6": "10",
+    "Topic 7": "9",
+    "Topic 8": "0",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2014Q3",
+    "Topic 1": "9",
+    "Topic 2": "19",
+    "Topic 3": "10",
+    "Topic 4": "7",
+    "Topic 5": "8",
+    "Topic 6": "11",
+    "Topic 7": "11",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2014Q4",
+    "Topic 1": "7",
+    "Topic 2": "18",
+    "Topic 3": "8",
+    "Topic 4": "20",
+    "Topic 5": "9",
+    "Topic 6": "15",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2015Q1",
+    "Topic 1": "31",
+    "Topic 2": "32",
+    "Topic 3": "12",
+    "Topic 4": "23",
+    "Topic 5": "27",
+    "Topic 6": "12",
+    "Topic 7": "19",
+    "Topic 8": "3",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2015Q2",
+    "Topic 1": "14",
+    "Topic 2": "18",
+    "Topic 3": "9",
+    "Topic 4": "10",
+    "Topic 5": "8",
+    "Topic 6": "7",
+    "Topic 7": "15",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2015Q3",
+    "Topic 1": "15",
+    "Topic 2": "15",
+    "Topic 3": "3",
+    "Topic 4": "12",
+    "Topic 5": "10",
+    "Topic 6": "13",
+    "Topic 7": "6",
+    "Topic 8": "1",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2015Q4",
+    "Topic 1": "14",
+    "Topic 2": "14",
+    "Topic 3": "13",
+    "Topic 4": "12",
+    "Topic 5": "3",
+    "Topic 6": "12",
+    "Topic 7": "12",
+    "Topic 8": "0",
+    "Topic 9": "5"
+  },
+  {
+    "period": "2016Q1",
+    "Topic 1": "20",
+    "Topic 2": "25",
+    "Topic 3": "15",
+    "Topic 4": "13",
+    "Topic 5": "17",
+    "Topic 6": "11",
+    "Topic 7": "16",
+    "Topic 8": "1",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2016Q2",
+    "Topic 1": "16",
+    "Topic 2": "11",
+    "Topic 3": "6",
+    "Topic 4": "14",
+    "Topic 5": "7",
+    "Topic 6": "12",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "0"
+  },
+  {
+    "period": "2016Q3",
+    "Topic 1": "24",
+    "Topic 2": "19",
+    "Topic 3": "10",
+    "Topic 4": "10",
+    "Topic 5": "13",
+    "Topic 6": "6",
+    "Topic 7": "3",
+    "Topic 8": "3",
+    "Topic 9": "5"
+  },
+  {
+    "period": "2016Q4",
+    "Topic 1": "14",
+    "Topic 2": "18",
+    "Topic 3": "7",
+    "Topic 4": "13",
+    "Topic 5": "13",
+    "Topic 6": "12",
+    "Topic 7": "7",
+    "Topic 8": "0",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2017Q1",
+    "Topic 1": "23",
+    "Topic 2": "22",
+    "Topic 3": "16",
+    "Topic 4": "19",
+    "Topic 5": "16",
+    "Topic 6": "10",
+    "Topic 7": "24",
+    "Topic 8": "1",
+    "Topic 9": "7"
+  },
+  {
+    "period": "2017Q2",
+    "Topic 1": "17",
+    "Topic 2": "13",
+    "Topic 3": "8",
+    "Topic 4": "17",
+    "Topic 5": "9",
+    "Topic 6": "10",
+    "Topic 7": "13",
+    "Topic 8": "2",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2017Q3",
+    "Topic 1": "16",
+    "Topic 2": "13",
+    "Topic 3": "12",
+    "Topic 4": "7",
+    "Topic 5": "12",
+    "Topic 6": "12",
+    "Topic 7": "7",
+    "Topic 8": "1",
+    "Topic 9": "1"
+  },
+  {
+    "period": "2017Q4",
+    "Topic 1": "15",
+    "Topic 2": "20",
+    "Topic 3": "13",
+    "Topic 4": "15",
+    "Topic 5": "6",
+    "Topic 6": "15",
+    "Topic 7": "6",
+    "Topic 8": "0",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2018Q1",
+    "Topic 1": "27",
+    "Topic 2": "26",
+    "Topic 3": "19",
+    "Topic 4": "22",
+    "Topic 5": "17",
+    "Topic 6": "19",
+    "Topic 7": "17",
+    "Topic 8": "0",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2018Q2",
+    "Topic 1": "18",
+    "Topic 2": "23",
+    "Topic 3": "8",
+    "Topic 4": "7",
+    "Topic 5": "8",
+    "Topic 6": "13",
+    "Topic 7": "9",
+    "Topic 8": "0",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2018Q3",
+    "Topic 1": "14",
+    "Topic 2": "18",
+    "Topic 3": "11",
+    "Topic 4": "6",
+    "Topic 5": "12",
+    "Topic 6": "9",
+    "Topic 7": "5",
+    "Topic 8": "2",
+    "Topic 9": "2"
+  },
+  {
+    "period": "2018Q4",
+    "Topic 1": "20",
+    "Topic 2": "17",
+    "Topic 3": "5",
+    "Topic 4": "9",
+    "Topic 5": "9",
+    "Topic 6": "10",
+    "Topic 7": "9",
+    "Topic 8": "1",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2019Q1",
+    "Topic 1": "31",
+    "Topic 2": "29",
+    "Topic 3": "20",
+    "Topic 4": "23",
+    "Topic 5": "25",
+    "Topic 6": "16",
+    "Topic 7": "10",
+    "Topic 8": "0",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2019Q2",
+    "Topic 1": "24",
+    "Topic 2": "20",
+    "Topic 3": "12",
+    "Topic 4": "13",
+    "Topic 5": "9",
+    "Topic 6": "12",
+    "Topic 7": "10",
+    "Topic 8": "1",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2019Q3",
+    "Topic 1": "24",
+    "Topic 2": "14",
+    "Topic 3": "14",
+    "Topic 4": "13",
+    "Topic 5": "11",
+    "Topic 6": "12",
+    "Topic 7": "18",
+    "Topic 8": "0",
+    "Topic 9": "8"
+  },
+  {
+    "period": "2019Q4",
+    "Topic 1": "25",
+    "Topic 2": "25",
+    "Topic 3": "15",
+    "Topic 4": "9",
+    "Topic 5": "7",
+    "Topic 6": "10",
+    "Topic 7": "8",
+    "Topic 8": "0",
+    "Topic 9": "8"
+  },
+  {
+    "period": "2020Q1",
+    "Topic 1": "29",
+    "Topic 2": "30",
+    "Topic 3": "23",
+    "Topic 4": "27",
+    "Topic 5": "24",
+    "Topic 6": "20",
+    "Topic 7": "13",
+    "Topic 8": "4",
+    "Topic 9": "6"
+  },
+  {
+    "period": "2020Q2",
+    "Topic 1": "15",
+    "Topic 2": "22",
+    "Topic 3": "19",
+    "Topic 4": "8",
+    "Topic 5": "10",
+    "Topic 6": "11",
+    "Topic 7": "3",
+    "Topic 8": "2",
+    "Topic 9": "5"
+  },
+  {
+    "period": "2020Q3",
+    "Topic 1": "23",
+    "Topic 2": "25",
+    "Topic 3": "20",
+    "Topic 4": "17",
+    "Topic 5": "13",
+    "Topic 6": "12",
+    "Topic 7": "12",
+    "Topic 8": "1",
+    "Topic 9": "5"
+  },
+  {
+    "period": "2020Q4",
+    "Topic 1": "15",
+    "Topic 2": "22",
+    "Topic 3": "29",
+    "Topic 4": "21",
+    "Topic 5": "15",
+    "Topic 6": "12",
+    "Topic 7": "6",
+    "Topic 8": "4",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2021Q1",
+    "Topic 1": "42",
+    "Topic 2": "35",
+    "Topic 3": "35",
+    "Topic 4": "29",
+    "Topic 5": "19",
+    "Topic 6": "23",
+    "Topic 7": "19",
+    "Topic 8": "4",
+    "Topic 9": "8"
+  },
+  {
+    "period": "2021Q2",
+    "Topic 1": "20",
+    "Topic 2": "28",
+    "Topic 3": "25",
+    "Topic 4": "16",
+    "Topic 5": "13",
+    "Topic 6": "10",
+    "Topic 7": "15",
+    "Topic 8": "0",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2021Q3",
+    "Topic 1": "22",
+    "Topic 2": "24",
+    "Topic 3": "19",
+    "Topic 4": "9",
+    "Topic 5": "11",
+    "Topic 6": "16",
+    "Topic 7": "13",
+    "Topic 8": "3",
+    "Topic 9": "7"
+  },
+  {
+    "period": "2021Q4",
+    "Topic 1": "25",
+    "Topic 2": "22",
+    "Topic 3": "33",
+    "Topic 4": "16",
+    "Topic 5": "17",
+    "Topic 6": "11",
+    "Topic 7": "14",
+    "Topic 8": "1",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2022Q1",
+    "Topic 1": "45",
+    "Topic 2": "85",
+    "Topic 3": "64",
+    "Topic 4": "32",
+    "Topic 5": "24",
+    "Topic 6": "29",
+    "Topic 7": "27",
+    "Topic 8": "11",
+    "Topic 9": "11"
+  },
+  {
+    "period": "2022Q2",
+    "Topic 1": "22",
+    "Topic 2": "34",
+    "Topic 3": "21",
+    "Topic 4": "15",
+    "Topic 5": "14",
+    "Topic 6": "19",
+    "Topic 7": "10",
+    "Topic 8": "2",
+    "Topic 9": "5"
+  },
+  {
+    "period": "2022Q3",
+    "Topic 1": "26",
+    "Topic 2": "29",
+    "Topic 3": "14",
+    "Topic 4": "9",
+    "Topic 5": "8",
+    "Topic 6": "14",
+    "Topic 7": "10",
+    "Topic 8": "4",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2022Q4",
+    "Topic 1": "38",
+    "Topic 2": "34",
+    "Topic 3": "23",
+    "Topic 4": "15",
+    "Topic 5": "24",
+    "Topic 6": "12",
+    "Topic 7": "24",
+    "Topic 8": "4",
+    "Topic 9": "3"
+  },
+  {
+    "period": "2023Q1",
+    "Topic 1": "49",
+    "Topic 2": "73",
+    "Topic 3": "46",
+    "Topic 4": "26",
+    "Topic 5": "28",
+    "Topic 6": "15",
+    "Topic 7": "33",
+    "Topic 8": "17",
+    "Topic 9": "18"
+  },
+  {
+    "period": "2023Q2",
+    "Topic 1": "27",
+    "Topic 2": "31",
+    "Topic 3": "30",
+    "Topic 4": "13",
+    "Topic 5": "10",
+    "Topic 6": "12",
+    "Topic 7": "12",
+    "Topic 8": "2",
+    "Topic 9": "8"
+  },
+  {
+    "period": "2023Q3",
+    "Topic 1": "25",
+    "Topic 2": "33",
+    "Topic 3": "27",
+    "Topic 4": "19",
+    "Topic 5": "13",
+    "Topic 6": "18",
+    "Topic 7": "15",
+    "Topic 8": "9",
+    "Topic 9": "5"
+  },
+  {
+    "period": "2023Q4",
+    "Topic 1": "27",
+    "Topic 2": "32",
+    "Topic 3": "29",
+    "Topic 4": "10",
+    "Topic 5": "14",
+    "Topic 6": "8",
+    "Topic 7": "13",
+    "Topic 8": "3",
+    "Topic 9": "7"
+  },
+  {
+    "period": "2024Q1",
+    "Topic 1": "44",
+    "Topic 2": "100",
+    "Topic 3": "36",
+    "Topic 4": "21",
+    "Topic 5": "17",
+    "Topic 6": "21",
+    "Topic 7": "13",
+    "Topic 8": "38",
+    "Topic 9": "18"
+  },
+  {
+    "period": "2024Q2",
+    "Topic 1": "25",
+    "Topic 2": "57",
+    "Topic 3": "29",
+    "Topic 4": "11",
+    "Topic 5": "16",
+    "Topic 6": "11",
+    "Topic 7": "14",
+    "Topic 8": "9",
+    "Topic 9": "4"
+  },
+  {
+    "period": "2024Q3",
+    "Topic 1": "36",
+    "Topic 2": "60",
+    "Topic 3": "30",
+    "Topic 4": "17",
+    "Topic 5": "16",
+    "Topic 6": "13",
+    "Topic 7": "15",
+    "Topic 8": "11",
+    "Topic 9": "7"
+  },
+  {
+    "period": "2024Q4",
+    "Topic 1": "40",
+    "Topic 2": "67",
+    "Topic 3": "29",
+    "Topic 4": "7",
+    "Topic 5": "13",
+    "Topic 6": "19",
+    "Topic 7": "16",
+    "Topic 8": "23",
+    "Topic 9": "12"
+  },
+  {
+    "period": "2025Q1",
+    "Topic 1": "55",
+    "Topic 2": "105",
+    "Topic 3": "71",
+    "Topic 4": "27",
+    "Topic 5": "33",
+    "Topic 6": "29",
+    "Topic 7": "18",
+    "Topic 8": "78",
+    "Topic 9": "16"
+  },
+  {
+    "period": "2025Q2",
+    "Topic 1": "41",
+    "Topic 2": "52",
+    "Topic 3": "35",
+    "Topic 4": "14",
+    "Topic 5": "10",
+    "Topic 6": "17",
+    "Topic 7": "11",
+    "Topic 8": "23",
+    "Topic 9": "9"
+  },
+  {
+    "period": "2025Q3",
+    "Topic 1": "43",
+    "Topic 2": "65",
+    "Topic 3": "36",
+    "Topic 4": "14",
+    "Topic 5": "24",
+    "Topic 6": "25",
+    "Topic 7": "13",
+    "Topic 8": "25",
+    "Topic 9": "13"
+  },
+  {
+    "period": "2025Q4",
+    "Topic 1": "45",
+    "Topic 2": "83",
+    "Topic 3": "41",
+    "Topic 4": "19",
+    "Topic 5": "25",
+    "Topic 6": "25",
+    "Topic 7": "11",
+    "Topic 8": "22",
+    "Topic 9": "12"
+  }
+];
+
+    // Get all topic columns
+    const allTopics = Object.keys(csvData[0]).filter(key => key.startsWith('Topic'));
+
+    // Initialize
+    let selectedTopics = [];
+    let chart = null;
+
+    // Color palette (extended for more topics)
+    const colors = [
+        '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c',
+        '#d97706', '#ca8a04', '#65a30d', '#16a34a', '#059669',
+        '#0d9488', '#0891b2', '#0284c7', '#4f46e5', '#9333ea',
+        '#c026d3', '#e11d48', '#ef4444', '#f97316', '#eab308',
+        '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#0ea5e9',
+        '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+        '#ec4899', '#f43f5e', '#fb7185', '#f472b6', '#e879f9',
+        '#c084fc', '#a78bfa', '#818cf8', '#60a5fa', '#38bdf8',
+        '#22d3ee', '#2dd4bf', '#34d399', '#4ade80', '#a3e635'
+    ];
+
+    // Initialize the chart
+    document.addEventListener('DOMContentLoaded', function() {
+        chart = echarts.init(document.getElementById('chart'));
+
+        // Populate topic checkboxes
+        const checkboxList = document.getElementById('topicCheckboxList');
+        allTopics.forEach(topic => {
+            const item = document.createElement('label');
+            item.className = 'topic-checkbox-item';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = topic;
+            cb.id = 'cb_' + topic.replace(/\s/g, '_');
+            cb.checked = true;
+            cb.addEventListener('change', function() {
+                if (this.checked) {
+                    if (!selectedTopics.includes(topic)) selectedTopics.push(topic);
+                } else {
+                    selectedTopics = selectedTopics.filter(t => t !== topic);
+                }
+                updateDropdownLabel();
+                updateSelectedTopicTags();
+                updateChart();
+            });
+            const span = document.createElement('span');
+            span.textContent = topic;
+            item.appendChild(cb);
+            item.appendChild(span);
+            checkboxList.appendChild(item);
+        });
+
+        // Select all topics by default
+        selectedTopics = [...allTopics];
+
+        updateDropdownLabel();
+        updateSelectedTopicTags();
+        updateChart();
+
+        window.addEventListener('resize', () => chart.resize());
+    });
+
+    // Update the chart
+    function updateChart() {
+        if (!chart || !csvData) return;
+
+        const periods = csvData.map(row => row.period);
+
+        const series = selectedTopics.map((topic, index) => ({
+            name: topic,
+            type: 'line',
+            data: csvData.map(row => parseFloat(row[topic]) || 0),
+            smooth: true,
+            lineStyle: { width: 2 },
+            itemStyle: { color: colors[index % colors.length] },
+            emphasis: {
+                focus: 'series',
+                lineStyle: { width: 3 }
+            },
+            blur: {
+                lineStyle: { opacity: 0.2 },
+                itemStyle: { opacity: 0.2 }
+            }
+        }));
+
+        const option = {
+            title: {
+                text: selectedTopics.length === 0 ? 'Select topics to display' : 'Topic Distribution Over Time',
+                left: 'center',
+                top: selectedTopics.length === 0 ? 'center' : 10,
+                textStyle: { color: '#1e293b' }
+            },
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                borderColor: '#e2e8f0',
+                borderWidth: 1,
+                textStyle: { color: '#1e293b' },
+                formatter: function(param) {
+                    return `${param.name}<br/><span style="color:${param.color}">●</span> ${param.seriesName}: ${parseFloat(param.value).toFixed(2)}`;
+                }
+            },
+            legend: {
+                data: selectedTopics,
+                top: 40,
+                type: 'scroll',
+                textStyle: { color: '#64748b' }
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                top: selectedTopics.length === 0 ? '50%' : 100,
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: periods,
+                axisLabel: { rotate: 45, color: '#64748b' },
+                axisLine: { lineStyle: { color: '#e2e8f0' } },
+                splitLine: { lineStyle: { color: '#f1f5f9' } }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Topic Weight',
+                nameTextStyle: { color: '#64748b' },
+                axisLabel: { color: '#64748b' },
+                axisLine: { lineStyle: { color: '#e2e8f0' } },
+                splitLine: { lineStyle: { color: '#f1f5f9' } }
+            },
+            series: series
+        };
+
+        chart.setOption(option, true);
+    }
+
+    // Update selected topic tags display
+    function updateSelectedTopicTags() {
+        const container = document.getElementById('selectedTopics');
+        if (selectedTopics.length === 0) {
+            container.innerHTML = '<span class="no-selection">No topics selected</span>';
+            return;
+        }
+
+        container.innerHTML = selectedTopics.map(topic => `
+            <div class="topic-tag">
+                <span>${topic}</span>
+                <span class="remove" onclick="removeTopic('${topic}')">×</span>
+            </div>
+        `).join('');
+    }
+
+    // Remove topic from selection
+    function removeTopic(topic) {
+        selectedTopics = selectedTopics.filter(t => t !== topic);
+        const cb = document.getElementById('cb_' + topic.replace(/\s/g, '_'));
+        if (cb) cb.checked = false;
+        updateDropdownLabel();
+        updateSelectedTopicTags();
+        updateChart();
+    }
+
+    // Dropdown toggle
+    function toggleDropdown() {
+        document.getElementById('dropdownPanel').classList.toggle('open');
+    }
+
+    // Close dropdown on outside click
+    document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('topicDropdown');
+        if (dropdown && !dropdown.contains(e.target)) {
+            document.getElementById('dropdownPanel').classList.remove('open');
+        }
+    });
+
+    // Update dropdown button label
+    function updateDropdownLabel() {
+        const label = document.getElementById('dropdownLabel');
+        if (selectedTopics.length === 0) {
+            label.textContent = 'No topics selected';
+        } else if (selectedTopics.length === allTopics.length) {
+            label.textContent = 'All Topics';
+        } else {
+            label.textContent = selectedTopics.length + ' topic' + (selectedTopics.length > 1 ? 's' : '') + ' selected';
+        }
+    }
+
+    // Select all topics
+    function selectAll() {
+        selectedTopics = [...allTopics];
+        document.querySelectorAll('#topicCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = true);
+        updateDropdownLabel();
+        updateSelectedTopicTags();
+        updateChart();
+    }
+
+    // Clear all topics
+    function clearAll() {
+        selectedTopics = [];
+        document.querySelectorAll('#topicCheckboxList input[type="checkbox"]').forEach(cb => cb.checked = false);
+        updateDropdownLabel();
+        updateSelectedTopicTags();
+        updateChart();
+    }
+    </script>
+</body>
+</html>
